@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center">
+          <i data-lucide="box" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold">Inventory Hub</h1>
+          <p class="text-xs text-zinc-500">Sienne's Avenue</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="fetchData()" class="p-2 hover:bg-zinc-800 rounded-lg transition-colors">
+          <i data-lucide="refresh-cw" class="w-5 h-5 text-zinc-400"></i>
+        </button>
+        <button onclick="toggleAlerts()" class="relative p-2 hover:bg-zinc-800 rounded-lg transition-colors">
+          <i data-lucide="bell" class="w-5 h-5 text-zinc-400"></i>
+          <span id="alertBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-xs rounded-full flex items-center justify-center font-medium">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="max-w-7xl mx-auto px-4 flex gap-1 border-b border-zinc-800">
+      <button onclick="setTab('dashboard')" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 transition-colors" data-tab="dashboard">
+        <i data-lucide="bar-chart-3" class="w-4 h-4 inline mr-1.5"></i>Dashboard
+      </button>
+      <button onclick="setTab('products')" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 transition-colors" data-tab="products">
+        <i data-lucide="package" class="w-4 h-4 inline mr-1.5"></i>Products
+      </button>
+      <button onclick="setTab('history')" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 transition-colors" data-tab="history">
+        <i data-lucide="history" class="w-4 h-4 inline mr-1.5"></i>History
+      </button>
+      <button onclick="setTab('settings')" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 transition-colors" data-tab="settings">
+        <i data-lucide="settings" class="w-4 h-4 inline mr-1.5"></i>Settings
+      </button>
+    </div>
+  </header>
+
+  <!-- Alerts Panel -->
+  <div id="alertsPanel" class="hidden fixed top-20 right-4 w-96 max-h-[70vh] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+    <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+      <h3 class="font-semibold">Notifications</h3>
+      <button onclick="markAllRead()" class="text-xs text-blue-400 hover:text-blue-300">Mark all read</button>
+    </div>
+    <div id="alertsList" class="p-3 space-y-2 max-h-96 overflow-y-auto"></div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto p-4">
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab-content space-y-6">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-zinc-400 text-sm">Total Products</span>
+            <div class="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
+              <i data-lucide="package" class="w-5 h-5 text-violet-400"></i>
+            </div>
+          </div>
+          <div id="statTotalProducts" class="text-3xl font-bold">-</div>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-zinc-400 text-sm">Total Stock</span>
+            <div class="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+              <i data-lucide="boxes" class="w-5 h-5 text-blue-400"></i>
+            </div>
+          </div>
+          <div id="statTotalStock" class="text-3xl font-bold">-</div>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-zinc-400 text-sm">Low Stock</span>
+            <div class="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+              <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400"></i>
+            </div>
+          </div>
+          <div id="statLowStock" class="text-3xl font-bold text-amber-400">-</div>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-zinc-400 text-sm">Critical</span>
+            <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
+              <i data-lucide="x-circle" class="w-5 h-5 text-red-400"></i>
+            </div>
+          </div>
+          <div id="statCritical" class="text-3xl font-bold text-red-400">-</div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="md:col-span-2 bg-zinc-900/80 border border-zinc-800 rounded-2xl">
+          <div class="p-4 border-b border-zinc-800">
+            <h3 class="font-semibold">Recent Movements</h3>
+          </div>
+          <div id="recentMovements" class="p-4 space-y-3 max-h-80 overflow-y-auto"></div>
+        </div>
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl">
+          <div class="p-4 border-b border-zinc-800">
+            <h3 class="font-semibold">Stock Distribution</h3>
+          </div>
+          <div id="stockDistribution" class="p-4 space-y-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products Tab -->
+    <div id="tab-products" class="tab-content hidden space-y-4">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+          <input id="searchInput" type="text" placeholder="Search products..." 
+            class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-zinc-600"
+            oninput="filterProducts()">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="setFilter('all')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">All</button>
+          <button onclick="setFilter('green')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="green">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1"></span>Healthy
+          </button>
+          <button onclick="setFilter('yellow')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="yellow">
+            <span class="w-2 h-2 bg-amber-500 rounded-full inline-block mr-1"></span>Low
+          </button>
+          <button onclick="setFilter('red')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="red">
+            <span class="w-2 h-2 bg-red-500 rounded-full inline-block mr-1"></span>Critical
+          </button>
+        </div>
+      </div>
+      <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+    </div>
+
+    <!-- History Tab -->
+    <div id="tab-history" class="tab-content hidden">
+      <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-zinc-800/50">
+              <tr>
+                <th class="text-left px-4 py-3 font-medium text-zinc-400">Date & Time</th>
+                <th class="text-left px-4 py-3 font-medium text-zinc-400">Product</th>
+                <th class="text-left px-4 py-3 font-medium text-zinc-400">SKU</th>
+                <th class="text-left px-4 py-3 font-medium text-zinc-400">Type</th>
+                <th class="text-right px-4 py-3 font-medium text-zinc-400">Qty</th>
+                <th class="text-right px-4 py-3 font-medium text-zinc-400">Before</th>
+                <th class="text-right px-4 py-3 font-medium text-zinc-400">After</th>
+                <th class="text-left px-4 py-3 font-medium text-zinc-400">Source</th>
+              </tr>
+            </thead>
+            <tbody id="historyTable" class="divide-y divide-zinc-800"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="tab-settings" class="tab-content hidden space-y-6">
+      <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6">
+        <h3 class="text-lg font-semibold mb-4">API Configuration</h3>
+        <p class="text-sm text-zinc-400 mb-4">Configure your marketplace API credentials. Keys are stored securely and used for inventory sync.</p>
+        
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- Shopee -->
+          <div class="border border-zinc-800 rounded-xl p-4">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">S</div>
+              <div>
+                <h4 class="font-semibold">Shopee</h4>
+                <p class="text-xs text-zinc-500">Open Platform API</p>
+              </div>
+            </div>
+            <div class="space-y-3 mb-4">
+              <input id="shopee_api_key" type="text" placeholder="Partner ID" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-500">
+              <input id="shopee_api_secret" type="password" placeholder="Partner Key" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-500">
+              <input id="shopee_shop_id" type="text" placeholder="Shop ID" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-500">
+            </div>
+            <div class="flex gap-2">
+              <button onclick="saveConfig('shopee')" class="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-sm font-medium transition-colors">Save</button>
+              <button onclick="syncMarketplace('shopee')" class="flex-1 py-2 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-600/30 rounded-lg text-sm font-medium transition-colors">Sync</button>
+            </div>
+          </div>
+
+          <!-- Shopify -->
+          <div class="border border-zinc-800 rounded-xl p-4">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">S</div>
+              <div>
+                <h4 class="font-semibold">Shopify</h4>
+                <p class="text-xs text-zinc-500">Admin API</p>
+              </div>
+            </div>
+            <div class="space-y-3 mb-4">
+              <input id="shopify_api_key" type="text" placeholder="API Key" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-500">
+              <input id="shopify_api_secret" type="password" placeholder="API Secret" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-500">
+              <input id="shopify_shop_id" type="text" placeholder="Store URL (your-store.myshopify.com)" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-500">
+              <input id="shopify_access_token" type="password" placeholder="Access Token" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-500">
+            </div>
+            <div class="flex gap-2">
+              <button onclick="saveConfig('shopify')" class="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-sm font-medium transition-colors">Save</button>
+              <button onclick="syncMarketplace('shopify')" class="flex-1 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/30 rounded-lg text-sm font-medium transition-colors">Sync</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thresholds Info -->
+      <div class="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6">
+        <h3 class="text-lg font-semibold mb-4">Stock Level Thresholds</h3>
+        <div class="space-y-3">
+          <div class="flex items-center gap-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+            <div class="w-4 h-4 bg-emerald-500 rounded-full"></div>
+            <div>
+              <p class="font-medium text-emerald-400">Green (Healthy)</p>
+              <p class="text-sm text-zinc-400">Stock above warning threshold</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <div class="w-4 h-4 bg-amber-500 rounded-full"></div>
+            <div>
+              <p class="font-medium text-amber-400">Yellow (Low)</p>
+              <p class="text-sm text-zinc-400">Stock below warning threshold but above critical</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+            <div class="w-4 h-4 bg-red-500 rounded-full"></div>
+            <div>
+              <p class="font-medium text-red-400">Red (Critical)</p>
+              <p class="text-sm text-zinc-400">Stock at or below critical threshold - reorder immediately</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = 'http://localhost:3001/api';
+    
+    let products = [];
+    let alerts = [];
+    let dashboard = null;
+    let movements = [];
+    let activeTab = 'dashboard';
+    let currentFilter = 'all';
+
+    // Product image mapping
+    const productImages = {
+      'JENNIE-TEE': 'jennie_tee.JPG',
+      'CHARLOTTE-CARD': 'charlotte_cardigan.JPG',
+      'SYDNEY-TANK': 'sydney_tank.JPG',
+      'KENDALL-LACE': 'kendall_lace_tank.JPG',
+      'CANDACE-SKORT': 'Candace_Mini_Skort_.jpg',
+      'DENIM-MADDY': 'denim_maddy.JPG',
+      'CASSIE-SHIRT': 'cassie_shirt.JPG',
+      'DANIELLE-TOP': 'danielle_top.JPG',
+      'MADDY-SHIRT': 'maddy_shirt.JPG',
+      'LILY-PANTS': 'lily_pants.JPG',
+      'CASSIE-IVY': 'cassie_ivy_short.jpg',
+      'IVY-DENIM': 'ivy_denim.jpg',
+      'RUBY-LILY-SET': 'rubylily_set.JPG',
+      'RUBY-LILY': 'ruby_lily.JPG'
+    };
+
+    async function fetchData() {
+      try {
+        const [productsRes, alertsRes, dashboardRes, movementsRes] = await Promise.all([
+          fetch(`${API_BASE}/products`),
+          fetch(`${API_BASE}/alerts?limit=50`),
+          fetch(`${API_BASE}/dashboard`),
+          fetch(`${API_BASE}/stock-movements?limit=50`)
+        ]);
+        
+        products = await productsRes.json();
+        alerts = await alertsRes.json();
+        dashboard = await dashboardRes.json();
+        movements = await movementsRes.json();
+        
+        render();
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+      }
+    }
+
+    function render() {
+      renderDashboard();
+      renderProducts();
+      renderHistory();
+      renderAlerts();
+      lucide.createIcons();
+    }
+
+    function renderDashboard() {
+      if (!dashboard) return;
+      
+      document.getElementById('statTotalProducts').textContent = dashboard.total_products;
+      document.getElementById('statTotalStock').textContent = dashboard.total_stock;
+      document.getElementById('statLowStock').textContent = dashboard.stock_levels?.yellow || 0;
+      document.getElementById('statCritical').textContent = dashboard.stock_levels?.red || 0;
+
+      // Recent movements
+      const movementsHtml = dashboard.recent_movements?.slice(0, 8).map(m => `
+        <div class="flex items-center gap-3 p-2 hover:bg-zinc-800/30 rounded-lg">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center ${m.movement_type === 'in' ? 'bg-emerald-500/20' : 'bg-red-500/20'}">
+            <i data-lucide="${m.movement_type === 'in' ? 'trending-up' : 'trending-down'}" class="w-4 h-4 ${m.movement_type === 'in' ? 'text-emerald-400' : 'text-red-400'}"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium truncate">${m.product_name}</p>
+            <p class="text-xs text-zinc-500">${new Date(m.created_at).toLocaleString()}</p>
+          </div>
+          <span class="text-sm font-medium ${m.movement_type === 'in' ? 'text-emerald-400' : 'text-red-400'}">
+            ${m.movement_type === 'in' ? '+' : '-'}${m.quantity}
+          </span>
+        </div>
+      `).join('') || '<p class="text-zinc-500 text-sm">No recent movements</p>';
+      
+      document.getElementById('recentMovements').innerHTML = movementsHtml;
+
+      // Stock distribution
+      const total = dashboard.total_products;
+      const levels = dashboard.stock_levels || { green: 0, yellow: 0, red: 0 };
+      document.getElementById('stockDistribution').innerHTML = `
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="text-emerald-400">Healthy</span>
+              <span>${levels.green} (${total ? Math.round(levels.green / total * 100) : 0}%)</span>
+            </div>
+            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full" style="width: ${total ? levels.green / total * 100 : 0}%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="text-amber-400">Low Stock</span>
+              <span>${levels.yellow} (${total ? Math.round(levels.yellow / total * 100) : 0}%)</span>
+            </div>
+            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div class="h-full bg-amber-500 rounded-full" style="width: ${total ? levels.yellow / total * 100 : 0}%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="text-red-400">Critical</span>
+              <span>${levels.red} (${total ? Math.round(levels.red / total * 100) : 0}%)</span>
+            </div>
+            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div class="h-full bg-red-500 rounded-full" style="width: ${total ? levels.red / total * 100 : 0}%"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderProducts() {
+      const query = document.getElementById('searchInput')?.value.toLowerCase() || '';
+      const filtered = products.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query);
+        const matchesFilter = currentFilter === 'all' || p.stock_level === currentFilter;
+        return matchesSearch && matchesFilter;
+      });
+
+      const badgeColors = {
+        red: 'bg-red-500/20 text-red-400 border-red-500/30',
+        yellow: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        green: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+      };
+
+      document.getElementById('productsGrid').innerHTML = filtered.map(p => `
+        <div class="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition-all duration-300">
+          <div class="aspect-[4/3] bg-zinc-800/50 relative overflow-hidden">
+            ${productImages[p.sku] ? 
+              `<img src="images/${productImages[p.sku]}" alt="${p.name}" class="w-full h-full object-cover">` :
+              `<div class="absolute inset-0 flex items-center justify-center text-zinc-600">
+                <i data-lucide="package" class="w-12 h-12"></i>
+              </div>`
+            }
+            <div class="absolute top-3 right-3">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badgeColors[p.stock_level]}">
+                ${p.current_stock} units
+              </span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-zinc-900 to-transparent h-16"></div>
+          </div>
+          <div class="p-4">
+            <div class="mb-3">
+              <h3 class="font-semibold text-zinc-100 truncate">${p.name}</h3>
+              <p class="text-xs text-zinc-500 font-mono">${p.sku}</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-zinc-400 mb-4">
+              <span class="px-2 py-0.5 bg-zinc-800 rounded">${p.category}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" min="1" value="1" class="qty-input w-16 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-center text-sm text-zinc-200 focus:outline-none focus:border-zinc-500" data-id="${p.id}">
+              <button onclick="stockChange(${p.id}, 'in')" class="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-600/30 rounded-lg py-1.5 text-sm font-medium transition-colors">
+                <i data-lucide="plus" class="w-4 h-4"></i> In
+              </button>
+              <button onclick="stockChange(${p.id}, 'out')" class="flex-1 flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 rounded-lg py-1.5 text-sm font-medium transition-colors" ${p.current_stock < 1 ? 'disabled' : ''}>
+                <i data-lucide="minus" class="w-4 h-4"></i> Out
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderHistory() {
+      document.getElementById('historyTable').innerHTML = movements.map(m => `
+        <tr class="hover:bg-zinc-800/30">
+          <td class="px-4 py-3 text-zinc-400">${new Date(m.created_at).toLocaleString()}</td>
+          <td class="px-4 py-3 font-medium">${m.product_name}</td>
+          <td class="px-4 py-3 font-mono text-xs text-zinc-500">${m.sku}</td>
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${m.movement_type === 'in' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}">
+              ${m.movement_type.toUpperCase()}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right font-medium">${m.quantity}</td>
+          <td class="px-4 py-3 text-right text-zinc-500">${m.previous_stock}</td>
+          <td class="px-4 py-3 text-right">${m.new_stock}</td>
+          <td class="px-4 py-3 text-zinc-400 capitalize">${m.source || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderAlerts() {
+      const unread = alerts.filter(a => !a.is_read);
+      const badge = document.getElementById('alertBadge');
+      if (unread.length > 0) {
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        badge.textContent = unread.length;
+      } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+      }
+
+      const levelColors = {
+        red: 'border-l-red-500 bg-red-500/5',
+        yellow: 'border-l-amber-500 bg-amber-500/5',
+        green: 'border-l-emerald-500 bg-emerald-500/5',
+        info: 'border-l-blue-500 bg-blue-500/5'
+      };
+
+      document.getElementById('alertsList').innerHTML = alerts.slice(0, 20).map(a => `
+        <div class="border-l-4 ${levelColors[a.level]} p-3 rounded-r-lg ${a.is_read ? 'opacity-50' : ''}">
+          <p class="text-sm text-zinc-200 leading-relaxed">${a.message}</p>
+          <p class="text-xs text-zinc-500 mt-1">${new Date(a.created_at).toLocaleString()}</p>
+        </div>
+      `).join('') || '<p class="text-zinc-500 text-sm text-center py-4">No notifications</p>';
+    }
+
+    async function stockChange(productId, type) {
+      const input = document.querySelector(`.qty-input[data-id="${productId}"]`);
+      const quantity = parseInt(input?.value) || 1;
+      
+      try {
+        await fetch(`${API_BASE}/stock-movement`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_id: productId,
+            movement_type: type,
+            quantity: quantity,
+            source: 'manual',
+            notes: `Manual ${type === 'in' ? 'stock in' : 'stock out'}`
+          })
+        });
+        fetchData();
+      } catch (err) {
+        console.error('Stock update failed:', err);
+      }
+    }
+
+    async function saveConfig(platform) {
+      const config = {
+        platform,
+        api_key: document.getElementById(`${platform}_api_key`).value,
+        api_secret: document.getElementById(`${platform}_api_secret`).value,
+        shop_id: document.getElementById(`${platform}_shop_id`).value
+      };
+      
+      if (platform === 'shopify') {
+        config.access_token = document.getElementById('shopify_access_token').value;
+      }
+
+      try {
+        await fetch(`${API_BASE}/marketplace-config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        alert(`${platform} configuration saved!`);
+      } catch (err) {
+        console.error('Config save failed:', err);
+      }
+    }
+
+    async function syncMarketplace(platform) {
+      try {
+        const res = await fetch(`${API_BASE}/sync/${platform}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || `${platform} sync completed`);
+        fetchData();
+      } catch (err) {
+        console.error('Sync failed:', err);
+      }
+    }
+
+    async function markAllRead() {
+      await fetch(`${API_BASE}/alerts/read-all`, { method: 'PUT' });
+      fetchData();
+    }
+
+    function toggleAlerts() {
+      document.getElementById('alertsPanel').classList.toggle('hidden');
+    }
+
+    function setTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tab) {
+          btn.classList.add('text-zinc-100', 'border-violet-500');
+          btn.classList.remove('text-zinc-500', 'border-transparent');
+        } else {
+          btn.classList.remove('text-zinc-100', 'border-violet-500');
+          btn.classList.add('text-zinc-500', 'border-transparent');
+        }
+      });
+      lucide.createIcons();
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.dataset.filter === filter) {
+          btn.classList.add('bg-zinc-700', 'text-zinc-100');
+          btn.classList.remove('bg-zinc-800/50', 'text-zinc-400');
+        } else {
+          btn.classList.remove('bg-zinc-700', 'text-zinc-100');
+          btn.classList.add('bg-zinc-800/50', 'text-zinc-400');
+        }
+      });
+      renderProducts();
+      lucide.createIcons();
+    }
+
+    function filterProducts() {
+      renderProducts();
+      lucide.createIcons();
+    }
+
+    // Close alerts when clicking outside
+    document.addEventListener('click', (e) => {
+      const panel = document.getElementById('alertsPanel');
+      const bellBtn = e.target.closest('button[onclick="toggleAlerts()"]');
+      if (!panel.contains(e.target) && !bellBtn) {
+        panel.classList.add('hidden');
+      }
+    });
+
+    // Initialize
+    setTab('dashboard');
+    setFilter('all');
+    fetchData();
+    setInterval(fetchData, 30000);
+  </script>
+</body>
+</html>
